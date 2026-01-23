@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Prepper</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <h1>Image Prepper</h1>
+      <p class="subtitle">Resize, crop, convert &amp; upscale</p>
+    </header>
+
+    <main class="app-main">
+      <!-- Upload Zone -->
+      <div id="dropzone" class="dropzone">
+        <div class="dropzone-inner">
+          <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <p class="dropzone-text">Drop an image here or <span class="dropzone-link">browse</span></p>
+          <p class="dropzone-hint">PNG, JPG, WebP, AVIF up to 4MB for cloud processing</p>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" hidden>
+      </div>
+
+      <!-- Workspace -->
+      <div id="workspace" class="workspace hidden">
+        <!-- Preview Card -->
+        <div class="card preview-card">
+          <div id="cropContainer" class="crop-container">
+            <img id="preview" alt="Preview">
+            <div id="cropOverlay" class="crop-overlay hidden">
+              <div class="crop-shade crop-shade-top"></div>
+              <div class="crop-shade crop-shade-left"></div>
+              <div class="crop-shade crop-shade-right"></div>
+              <div class="crop-shade crop-shade-bottom"></div>
+              <div id="cropRect" class="crop-rect">
+                <div class="crop-guide crop-guide-v1"></div>
+                <div class="crop-guide crop-guide-v2"></div>
+                <div class="crop-handle nw" data-handle="nw"></div>
+                <div class="crop-handle ne" data-handle="ne"></div>
+                <div class="crop-handle sw" data-handle="sw"></div>
+                <div class="crop-handle se" data-handle="se"></div>
+                <div class="crop-handle n" data-handle="n"></div>
+                <div class="crop-handle s" data-handle="s"></div>
+                <div class="crop-handle w" data-handle="w"></div>
+                <div class="crop-handle e" data-handle="e"></div>
+                <div class="crop-dimensions" id="cropDimensions"></div>
+              </div>
+            </div>
+          </div>
+          <div class="preview-info">
+            <span id="imageInfo" class="image-info"></span>
+            <button id="changeImageBtn" class="btn btn-sm btn-ghost">Change image</button>
+          </div>
+        </div>
+
+        <!-- Controls Card -->
+        <div class="card controls-card">
+          <!-- Tabs -->
+          <div class="tabs">
+            <button class="tab active" data-tab="crop">Crop</button>
+            <button class="tab" data-tab="resize">Resize</button>
+            <button class="tab" data-tab="format">Format</button>
+            <button class="tab" data-tab="upscale">Upscale</button>
+          </div>
+
+          <!-- Tab: Crop -->
+          <div class="tab-panel active" id="tab-crop">
+            <div class="crop-presets">
+              <button class="preset-btn active" data-ratio="free">Free</button>
+              <button class="preset-btn" data-ratio="1:1">1:1</button>
+              <button class="preset-btn" data-ratio="4:3">4:3</button>
+              <button class="preset-btn" data-ratio="3:2">3:2</button>
+              <button class="preset-btn" data-ratio="16:9">16:9</button>
+              <button class="preset-btn" data-ratio="2:3">2:3</button>
+              <button class="preset-btn" data-ratio="3:4">3:4</button>
+              <button class="preset-btn" data-ratio="9:16">9:16</button>
+            </div>
+            <div class="tab-actions">
+              <button id="applyCropBtn" class="btn btn-primary">Apply Crop</button>
+              <button id="resetCropBtn" class="btn btn-ghost">Reset</button>
+            </div>
+          </div>
+
+          <!-- Tab: Resize -->
+          <div class="tab-panel" id="tab-resize">
+            <div class="input-row">
+              <div class="input-group">
+                <label for="resizeWidth">Width</label>
+                <input type="number" id="resizeWidth" min="1" placeholder="auto">
+              </div>
+              <div class="input-group">
+                <label for="resizeHeight">Height</label>
+                <input type="number" id="resizeHeight" min="1" placeholder="auto">
+              </div>
+              <label class="checkbox-label">
+                <input type="checkbox" id="lockAspect" checked>
+                <span>Lock ratio</span>
+              </label>
+            </div>
+            <div class="tab-actions">
+              <button id="processBtn" class="btn btn-primary">Resize</button>
+            </div>
+          </div>
+
+          <!-- Tab: Format -->
+          <div class="tab-panel" id="tab-format">
+            <div class="input-row">
+              <div class="input-group">
+                <label for="formatSelect">Format</label>
+                <select id="formatSelect">
+                  <option value="png">PNG</option>
+                  <option value="jpg">JPG</option>
+                  <option value="webp">WebP</option>
+                  <option value="avif">AVIF</option>
+                </select>
+              </div>
+              <div class="input-group quality-group">
+                <label for="qualitySlider">Quality <span id="qualityValue">80</span></label>
+                <input type="range" id="qualitySlider" min="1" max="100" value="80">
+              </div>
+            </div>
+            <div class="tab-actions">
+              <button id="convertBtn" class="btn btn-primary">Convert</button>
+            </div>
+          </div>
+
+          <!-- Tab: Upscale -->
+          <div class="tab-panel" id="tab-upscale">
+            <div class="input-row">
+              <label class="radio-label">
+                <input type="radio" name="upscaleType" value="crisp" checked>
+                <span>Crisp</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="upscaleType" value="creative">
+                <span>Creative</span>
+              </label>
+            </div>
+            <p class="hint">Uses Recraft AI. Requires API key configured on server.</p>
+            <div class="tab-actions">
+              <button id="upscaleBtn" class="btn btn-primary">Upscale</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Result Card -->
+        <div id="resultSection" class="card result-card hidden">
+          <h3 class="result-title">Result</h3>
+          <img id="resultPreview" alt="Result">
+          <div class="result-meta">
+            <span id="resultInfo" class="image-info"></span>
+            <button id="downloadBtn" class="btn btn-primary btn-sm">Download</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Loading overlay -->
+    <div id="loading" class="loading-overlay hidden">
+      <div class="spinner"></div>
+      <span>Processing...</span>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
