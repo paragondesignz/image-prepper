@@ -1,5 +1,4 @@
 const Busboy = require('busboy');
-const FormData = require('form-data');
 
 // Disable body parser for multipart handling
 
@@ -56,17 +55,14 @@ async function handler(req, res) {
       ? 'https://external.api.recraft.ai/v1/images/creativeUpscale'
       : 'https://external.api.recraft.ai/v1/images/crispUpscale';
 
+    const blob = new Blob([fileBuffer], { type: fileMeta.mimeType });
     const form = new FormData();
-    form.append('file', fileBuffer, {
-      filename: fileMeta.filename,
-      contentType: fileMeta.mimeType
-    });
+    form.append('file', blob, fileMeta.filename);
 
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        ...form.getHeaders()
+        'Authorization': `Bearer ${apiKey}`
       },
       body: form
     });
