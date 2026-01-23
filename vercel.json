@@ -1,4 +1,6 @@
 {
+  "framework": null,
+  "buildCommand": "",
   "outputDirectory": "public",
   "functions": {
     "api/process.js": { "memory": 1024, "maxDuration": 30 },
