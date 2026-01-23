@@ -5,6 +5,9 @@ const workspace = document.getElementById('workspace');
 const preview = document.getElementById('preview');
 const imageInfo = document.getElementById('imageInfo');
 const changeImageBtn = document.getElementById('changeImageBtn');
+const undoBtn = document.getElementById('undoBtn');
+const redoBtn = document.getElementById('redoBtn');
+const downloadBtn = document.getElementById('downloadBtn');
 const resizeWidth = document.getElementById('resizeWidth');
 const resizeHeight = document.getElementById('resizeHeight');
 const lockAspect = document.getElementById('lockAspect');
@@ -16,21 +19,20 @@ const convertBtn = document.getElementById('convertBtn');
 const upscaleBtn = document.getElementById('upscaleBtn');
 const applyCropBtn = document.getElementById('applyCropBtn');
 const resetCropBtn = document.getElementById('resetCropBtn');
-const resultSection = document.getElementById('resultSection');
-const resultPreview = document.getElementById('resultPreview');
-const resultInfo = document.getElementById('resultInfo');
-const downloadBtn = document.getElementById('downloadBtn');
 const loading = document.getElementById('loading');
 const cropContainer = document.getElementById('cropContainer');
 const cropOverlay = document.getElementById('cropOverlay');
 const cropRect = document.getElementById('cropRect');
 const cropDimensions = document.getElementById('cropDimensions');
 
-let currentFile = null;
+// State
 let originalWidth = 0;
 let originalHeight = 0;
-let resultDataUrl = null;
-let resultFormat = 'png';
+let currentFormat = 'png';
+
+// History stack: each entry is { dataUrl, width, height, size, format }
+let history = [];
+let historyIndex = -1;
 
 // Crop state
 let cropRatio = null;
@@ -38,7 +40,71 @@ let crop = { x: 0, y: 0, w: 0, h: 0 };
 let dragging = null;
 let dragStart = { mx: 0, my: 0, x: 0, y: 0, w: 0, h: 0 };
 
-const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB Vercel limit
+const MAX_FILE_SIZE = 4 * 1024 * 1024;
+
+// --- History ---
+
+function pushState(entry) {
+  // Discard any redo states
+  history = history.slice(0, historyIndex + 1);
+  history.push(entry);
+  historyIndex = history.length - 1;
+  applyCurrentState();
+}
+
+function applyCurrentState() {
+  const state = history[historyIndex];
+  if (!state) return;
+
+  preview.src = state.dataUrl;
+  originalWidth = state.width;
+  originalHeight = state.height;
+  currentFormat = state.format || 'png';
+
+  imageInfo.textContent = `${state.width} x ${state.height} | ${state.format.toUpperCase()} | ${formatBytes(state.size)}`;
+
+  updateHistoryButtons();
+
+  // Re-init crop after image loads with new dimensions
+  preview.onload = () => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        originalWidth = preview.naturalWidth;
+        originalHeight = preview.naturalHeight;
+        if (!cropOverlay.classList.contains('hidden')) {
+          initCrop();
+        }
+      });
+    });
+  };
+}
+
+function updateHistoryButtons() {
+  undoBtn.disabled = historyIndex <= 0;
+  redoBtn.disabled = historyIndex >= history.length - 1;
+}
+
+undoBtn.addEventListener('click', () => {
+  if (historyIndex > 0) {
+    historyIndex--;
+    applyCurrentState();
+  }
+});
+
+redoBtn.addEventListener('click', () => {
+  if (historyIndex < history.length - 1) {
+    historyIndex++;
+    applyCurrentState();
+  }
+});
+
+// Get current image as a Blob for sending to the API
+async function getCurrentBlob() {
+  const state = history[historyIndex];
+  if (!state) return null;
+  const res = await fetch(state.dataUrl);
+  return await res.blob();
+}
 
 // --- Tabs ---
 document.querySelectorAll('.tab').forEach(tab => {
@@ -48,9 +114,9 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.add('active');
     document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
 
-    // Show/hide crop overlay based on active tab
     if (tab.dataset.tab === 'crop') {
       cropOverlay.classList.remove('hidden');
+      initCrop();
     } else {
       cropOverlay.classList.add('hidden');
     }
@@ -73,44 +139,55 @@ fileInput.addEventListener('change', () => {
   if (fileInput.files.length) loadFile(fileInput.files[0]);
 });
 
-changeImageBtn.addEventListener('click', () => fileInput.click());
+changeImageBtn.addEventListener('click', () => {
+  fileInput.value = '';
+  fileInput.click();
+});
 
 function loadFile(file) {
   if (!file.type.startsWith('image/')) return;
-  currentFile = file;
 
-  // File size warning
-  let sizeWarning = '';
-  if (file.size > MAX_FILE_SIZE) {
-    sizeWarning = ' (exceeds 4MB cloud limit)';
-  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = reader.result;
+    const img = new Image();
+    img.onload = () => {
+      const ext = file.name.split('.').pop().toLowerCase();
+      const format = ({ jpg: 'jpg', jpeg: 'jpg', png: 'png', webp: 'webp', avif: 'avif' })[ext] || 'png';
 
-  const url = URL.createObjectURL(file);
-  preview.src = url;
-  preview.onload = () => {
-    originalWidth = preview.naturalWidth;
-    originalHeight = preview.naturalHeight;
-    imageInfo.textContent = `${originalWidth} x ${originalHeight} | ${file.name} | ${formatBytes(file.size)}${sizeWarning}`;
+      // Reset history for new file
+      history = [];
+      historyIndex = -1;
 
-    if (file.size > MAX_FILE_SIZE) {
-      imageInfo.classList.add('size-warning');
-    } else {
-      imageInfo.classList.remove('size-warning');
-    }
-
-    resizeWidth.value = '';
-    resizeHeight.value = '';
-    resultSection.classList.add('hidden');
-    dropzone.classList.add('hidden');
-    workspace.classList.remove('hidden');
-
-    // FIX: Use requestAnimationFrame to ensure image is rendered before reading dimensions
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        initCrop();
+      pushState({
+        dataUrl,
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+        size: file.size,
+        format
       });
-    });
+
+      if (file.size > MAX_FILE_SIZE) {
+        imageInfo.classList.add('size-warning');
+        imageInfo.textContent += ' (exceeds 4MB cloud limit)';
+      } else {
+        imageInfo.classList.remove('size-warning');
+      }
+
+      resizeWidth.value = '';
+      resizeHeight.value = '';
+      dropzone.classList.add('hidden');
+      workspace.classList.remove('hidden');
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          initCrop();
+        });
+      });
+    };
+    img.src = dataUrl;
   };
+  reader.readAsDataURL(file);
 }
 
 // --- Aspect ratio lock ---
@@ -142,7 +219,7 @@ function getScale() {
 
 function initCrop() {
   const { w, h } = getImageDisplaySize();
-  if (w === 0 || h === 0) return; // Guard against unrendered image
+  if (w === 0 || h === 0) return;
   const margin = 0.1;
   crop = { x: w * margin, y: h * margin, w: w * (1 - 2 * margin), h: h * (1 - 2 * margin) };
   if (cropRatio) applyRatioToCrop();
@@ -158,14 +235,8 @@ function applyRatioToCrop() {
 
   let newW = crop.w;
   let newH = newW / cropRatio;
-  if (newH > imgH * 0.9) {
-    newH = imgH * 0.9;
-    newW = newH * cropRatio;
-  }
-  if (newW > imgW * 0.9) {
-    newW = imgW * 0.9;
-    newH = newW / cropRatio;
-  }
+  if (newH > imgH * 0.9) { newH = imgH * 0.9; newW = newH * cropRatio; }
+  if (newW > imgW * 0.9) { newW = imgW * 0.9; newH = newW / cropRatio; }
 
   crop.w = newW;
   crop.h = newH;
@@ -175,9 +246,8 @@ function applyRatioToCrop() {
 
 function clampCrop() {
   const { w: imgW, h: imgH } = getImageDisplaySize();
-  const minSize = 10;
-  crop.w = Math.max(minSize, Math.min(crop.w, imgW));
-  crop.h = Math.max(minSize, Math.min(crop.h, imgH));
+  crop.w = Math.max(10, Math.min(crop.w, imgW));
+  crop.h = Math.max(10, Math.min(crop.h, imgH));
   crop.x = Math.max(0, Math.min(crop.x, imgW - crop.w));
   crop.y = Math.max(0, Math.min(crop.y, imgH - crop.h));
 }
@@ -202,9 +272,7 @@ function renderCrop() {
   shades[3].style.height = (imgH - crop.y - crop.h) + 'px';
 
   const scale = getScale();
-  const realW = Math.round(crop.w * scale.sx);
-  const realH = Math.round(crop.h * scale.sy);
-  cropDimensions.textContent = `${realW} x ${realH}`;
+  cropDimensions.textContent = `${Math.round(crop.w * scale.sx)} x ${Math.round(crop.h * scale.sy)}`;
 }
 
 // Preset buttons
@@ -213,18 +281,13 @@ document.querySelectorAll('.preset-btn').forEach(btn => {
     document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const ratio = btn.dataset.ratio;
-    if (ratio === 'free') {
-      cropRatio = null;
-    } else {
-      const [w, h] = ratio.split(':').map(Number);
-      cropRatio = w / h;
-    }
+    cropRatio = ratio === 'free' ? null : (() => { const [w, h] = ratio.split(':').map(Number); return w / h; })();
     if (cropRatio) applyRatioToCrop();
     renderCrop();
   });
 });
 
-// Mouse / touch interaction on crop overlay
+// Mouse / touch crop interaction
 cropOverlay.addEventListener('mousedown', onPointerDown);
 cropOverlay.addEventListener('touchstart', onPointerDown, { passive: false });
 
@@ -280,20 +343,13 @@ function onPointerMove(e) {
 
     if (cropRatio) {
       if (dragging === 'n' || dragging === 's') {
-        newW = newH * cropRatio;
-        newX = dragStart.x + (dragStart.w - newW) / 2;
+        newW = newH * cropRatio; newX = dragStart.x + (dragStart.w - newW) / 2;
       } else if (dragging === 'w' || dragging === 'e') {
-        newH = newW / cropRatio;
-        newY = dragStart.y + (dragStart.h - newH) / 2;
+        newH = newW / cropRatio; newY = dragStart.y + (dragStart.h - newH) / 2;
       } else {
         const ratioH = newW / cropRatio;
-        if (ratioH > newH) {
-          newH = ratioH;
-          if (dragging.includes('n')) newY = dragStart.y + dragStart.h - newH;
-        } else {
-          newW = newH * cropRatio;
-          if (dragging.includes('w')) newX = dragStart.x + dragStart.w - newW;
-        }
+        if (ratioH > newH) { newH = ratioH; if (dragging.includes('n')) newY = dragStart.y + dragStart.h - newH; }
+        else { newW = newH * cropRatio; if (dragging.includes('w')) newX = dragStart.x + dragStart.w - newW; }
       }
     }
 
@@ -302,12 +358,8 @@ function onPointerMove(e) {
     if (newX + newW > imgW) { newW = imgW - newX; if (cropRatio) newH = newW / cropRatio; }
     if (newY + newH > imgH) { newH = imgH - newY; if (cropRatio) newW = newH * cropRatio; }
 
-    crop.x = newX;
-    crop.y = newY;
-    crop.w = newW;
-    crop.h = newH;
+    crop.x = newX; crop.y = newY; crop.w = newW; crop.h = newH;
   }
-
   renderCrop();
 }
 
@@ -321,25 +373,22 @@ function onPointerUp() {
 
 // --- Apply crop ---
 applyCropBtn.addEventListener('click', async () => {
-  if (!currentFile) return;
+  if (historyIndex < 0) return;
   showLoading(true);
 
   const scale = getScale();
   const cropData = {
-    left: Math.round(crop.x * scale.sx),
-    top: Math.round(crop.y * scale.sy),
+    left: Math.max(0, Math.round(crop.x * scale.sx)),
+    top: Math.max(0, Math.round(crop.y * scale.sy)),
     width: Math.round(crop.w * scale.sx),
     height: Math.round(crop.h * scale.sy)
   };
-
-  // Clamp to image bounds
-  cropData.left = Math.max(0, cropData.left);
-  cropData.top = Math.max(0, cropData.top);
   cropData.width = Math.min(cropData.width, originalWidth - cropData.left);
   cropData.height = Math.min(cropData.height, originalHeight - cropData.top);
 
+  const blob = await getCurrentBlob();
   const formData = new FormData();
-  formData.append('image', currentFile);
+  formData.append('image', blob, 'image.' + currentFormat);
   formData.append('crop', JSON.stringify(cropData));
   formData.append('format', formatSelect.value);
   formData.append('quality', qualitySlider.value);
@@ -348,7 +397,7 @@ applyCropBtn.addEventListener('click', async () => {
     const res = await fetch('/api/process', { method: 'POST', body: formData });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    showResult(data);
+    pushState({ dataUrl: data.data, width: data.width, height: data.height, size: data.size, format: formatSelect.value });
   } catch (err) {
     showError(err.message);
   } finally {
@@ -356,7 +405,6 @@ applyCropBtn.addEventListener('click', async () => {
   }
 });
 
-// Reset crop
 resetCropBtn.addEventListener('click', () => {
   cropRatio = null;
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
@@ -369,17 +417,12 @@ window.addEventListener('resize', () => {
   if (!cropOverlay.classList.contains('hidden')) {
     const { w: imgW, h: imgH } = getImageDisplaySize();
     if (imgW && imgH) {
-      const scaleX = crop.x / (imgW || 1);
-      const scaleY = crop.y / (imgH || 1);
       requestAnimationFrame(() => {
         const { w: newW, h: newH } = getImageDisplaySize();
         if (newW && newH) {
-          const ratioX = newW / (imgW || 1);
-          const ratioY = newH / (imgH || 1);
-          crop.x *= ratioX;
-          crop.y *= ratioY;
-          crop.w *= ratioX;
-          crop.h *= ratioY;
+          const rx = newW / (imgW || 1);
+          const ry = newH / (imgH || 1);
+          crop.x *= rx; crop.y *= ry; crop.w *= rx; crop.h *= ry;
           renderCrop();
         }
       });
@@ -387,13 +430,14 @@ window.addEventListener('resize', () => {
   }
 });
 
-// --- Process (resize) ---
+// --- Resize ---
 processBtn.addEventListener('click', async () => {
-  if (!currentFile) return;
+  if (historyIndex < 0) return;
   showLoading(true);
 
+  const blob = await getCurrentBlob();
   const formData = new FormData();
-  formData.append('image', currentFile);
+  formData.append('image', blob, 'image.' + currentFormat);
   if (resizeWidth.value) formData.append('width', resizeWidth.value);
   if (resizeHeight.value) formData.append('height', resizeHeight.value);
   formData.append('format', formatSelect.value);
@@ -403,7 +447,7 @@ processBtn.addEventListener('click', async () => {
     const res = await fetch('/api/process', { method: 'POST', body: formData });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    showResult(data);
+    pushState({ dataUrl: data.data, width: data.width, height: data.height, size: data.size, format: formatSelect.value });
   } catch (err) {
     showError(err.message);
   } finally {
@@ -411,13 +455,14 @@ processBtn.addEventListener('click', async () => {
   }
 });
 
-// --- Convert (format only) ---
+// --- Convert ---
 convertBtn.addEventListener('click', async () => {
-  if (!currentFile) return;
+  if (historyIndex < 0) return;
   showLoading(true);
 
+  const blob = await getCurrentBlob();
   const formData = new FormData();
-  formData.append('image', currentFile);
+  formData.append('image', blob, 'image.' + currentFormat);
   formData.append('format', formatSelect.value);
   formData.append('quality', qualitySlider.value);
 
@@ -425,7 +470,7 @@ convertBtn.addEventListener('click', async () => {
     const res = await fetch('/api/process', { method: 'POST', body: formData });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    showResult(data);
+    pushState({ dataUrl: data.data, width: data.width, height: data.height, size: data.size, format: formatSelect.value });
   } catch (err) {
     showError(err.message);
   } finally {
@@ -435,12 +480,13 @@ convertBtn.addEventListener('click', async () => {
 
 // --- Upscale ---
 upscaleBtn.addEventListener('click', async () => {
-  if (!currentFile) return;
+  if (historyIndex < 0) return;
   showLoading(true);
 
   const type = document.querySelector('input[name="upscaleType"]:checked').value;
+  const blob = await getCurrentBlob();
   const formData = new FormData();
-  formData.append('image', currentFile);
+  formData.append('image', blob, 'image.' + currentFormat);
   formData.append('type', type);
 
   try {
@@ -449,15 +495,24 @@ upscaleBtn.addEventListener('click', async () => {
     if (data.error) throw new Error(data.error);
 
     const url = data.image && data.image.url;
-    if (url) {
-      resultDataUrl = url;
-      resultFormat = 'png';
-      resultPreview.src = resultDataUrl;
-      resultInfo.textContent = `Upscaled (${type})`;
-      resultSection.classList.remove('hidden');
-    } else {
-      throw new Error('Unexpected API response');
-    }
+    if (!url) throw new Error('Unexpected API response');
+
+    // Fetch the upscaled image to get its data URL and dimensions
+    const imgRes = await fetch(url);
+    const imgBlob = await imgRes.blob();
+    const reader = new FileReader();
+    const dataUrl = await new Promise((resolve) => {
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(imgBlob);
+    });
+
+    const img = new Image();
+    const dims = await new Promise((resolve) => {
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.src = dataUrl;
+    });
+
+    pushState({ dataUrl, width: dims.width, height: dims.height, size: imgBlob.size, format: 'png' });
   } catch (err) {
     showError(err.message);
   } finally {
@@ -467,22 +522,15 @@ upscaleBtn.addEventListener('click', async () => {
 
 // --- Download ---
 downloadBtn.addEventListener('click', () => {
-  if (!resultDataUrl) return;
+  if (historyIndex < 0) return;
+  const state = history[historyIndex];
   const a = document.createElement('a');
-  a.href = resultDataUrl;
-  a.download = `image-prepped.${resultFormat === 'jpg' ? 'jpg' : resultFormat}`;
+  a.href = state.dataUrl;
+  a.download = `image-prepped.${state.format === 'jpg' ? 'jpg' : state.format}`;
   a.click();
 });
 
 // --- Helpers ---
-function showResult(data) {
-  resultDataUrl = data.data;
-  resultFormat = formatSelect.value;
-  resultPreview.src = resultDataUrl;
-  resultInfo.textContent = `${data.width} x ${data.height} | ${resultFormat.toUpperCase()} | ${formatBytes(data.size)}`;
-  resultSection.classList.remove('hidden');
-}
-
 function showError(msg) {
   alert('Error: ' + msg);
 }

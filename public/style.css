@@ -156,6 +156,22 @@ body {
   font-size: 0.8rem;
 }
 
+.preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.preview-actions .btn svg {
+  display: block;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
 /* Crop overlay */
 .crop-overlay {
   position: absolute;
@@ -428,33 +444,6 @@ input[type="range"] {
   font-size: 0.8rem;
 }
 
-/* Result */
-.result-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.result-title {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  align-self: flex-start;
-}
-
-.result-card img {
-  max-width: 100%;
-  max-height: 380px;
-  border-radius: var(--radius);
-}
-
-.result-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
 
 /* Loading */
 .loading-overlay {

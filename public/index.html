@@ -56,7 +56,16 @@
           </div>
           <div class="preview-info">
             <span id="imageInfo" class="image-info"></span>
-            <button id="changeImageBtn" class="btn btn-sm btn-ghost">Change image</button>
+            <div class="preview-actions">
+              <button id="undoBtn" class="btn btn-sm btn-ghost" disabled title="Undo">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h13a4 4 0 0 1 0 8H7"/><polyline points="7 6 3 10 7 14"/></svg>
+              </button>
+              <button id="redoBtn" class="btn btn-sm btn-ghost" disabled title="Redo">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10H8a4 4 0 0 0 0 8h9"/><polyline points="17 6 21 10 17 14"/></svg>
+              </button>
+              <button id="downloadBtn" class="btn btn-sm btn-primary">Download</button>
+              <button id="changeImageBtn" class="btn btn-sm btn-ghost">New</button>
+            </div>
           </div>
         </div>
 
@@ -150,15 +159,6 @@
           </div>
         </div>
 
-        <!-- Result Card -->
-        <div id="resultSection" class="card result-card hidden">
-          <h3 class="result-title">Result</h3>
-          <img id="resultPreview" alt="Result">
-          <div class="result-meta">
-            <span id="resultInfo" class="image-info"></span>
-            <button id="downloadBtn" class="btn btn-primary btn-sm">Download</button>
-          </div>
-        </div>
       </div>
     </main>
 
