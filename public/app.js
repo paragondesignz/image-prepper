@@ -448,8 +448,9 @@ upscaleBtn.addEventListener('click', async () => {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
-    if (data.data && data.data[0] && data.data[0].url) {
-      resultDataUrl = data.data[0].url;
+    const url = data.image && data.image.url;
+    if (url) {
+      resultDataUrl = url;
       resultFormat = 'png';
       resultPreview.src = resultDataUrl;
       resultInfo.textContent = `Upscaled (${type})`;
