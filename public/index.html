@@ -9,27 +9,75 @@
 <body>
   <div class="app">
     <header class="app-header">
-      <h1>Image Prepper</h1>
+      <div class="header-row">
+        <h1>Image Prepper</h1>
+        <div class="header-actions">
+          <button id="themeToggle" class="btn btn-sm btn-ghost" aria-label="Toggle light/dark theme" title="Toggle theme">
+            <svg id="themeIconDark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg id="themeIconLight" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="hidden"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          </button>
+          <button id="shortcutsBtn" class="btn btn-sm btn-ghost" aria-label="Keyboard shortcuts" title="Keyboard shortcuts">?</button>
+        </div>
+      </div>
       <p class="subtitle">Resize, crop, convert &amp; upscale</p>
     </header>
 
+    <!-- Session restore banner -->
+    <div id="restoreBanner" class="restore-banner hidden" role="alert">
+      <span>Previous session found. <button id="restoreBtn" class="btn-link">Restore</button></span>
+      <button id="dismissRestore" class="btn-link dismiss" aria-label="Dismiss">&times;</button>
+    </div>
+
     <main class="app-main">
       <!-- Upload Zone -->
-      <div id="dropzone" class="dropzone">
+      <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="Drop images here or click to browse">
         <div class="dropzone-inner">
           <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="17 8 12 3 7 8"/>
             <line x1="12" y1="3" x2="12" y2="15"/>
           </svg>
-          <p class="dropzone-text">Drop an image here or <span class="dropzone-link">browse</span></p>
-          <p class="dropzone-hint">PNG, JPG, WebP, AVIF up to 4MB for cloud processing</p>
+          <p class="dropzone-text">Drop images here or <span class="dropzone-link">browse</span></p>
+          <p class="dropzone-hint">PNG, JPG, WebP, AVIF up to 50MB &mdash; drop multiple for batch</p>
         </div>
-        <input type="file" id="fileInput" accept="image/*" hidden>
+        <input type="file" id="fileInput" accept="image/*" multiple hidden>
       </div>
 
-      <!-- Workspace -->
-      <div id="workspace" class="workspace hidden">
+      <!-- Upload Bar (always visible when workspace is shown) -->
+      <div id="uploadBar" class="upload-bar hidden">
+        <div class="upload-bar-content">
+          <button id="addImagesBtn" class="btn btn-sm btn-ghost">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Images
+          </button>
+          <span id="pendingCount" class="pending-count hidden">0 more waiting</span>
+          <span class="upload-hint">or drop files anywhere</span>
+        </div>
+      </div>
+
+      <!-- Workspace Container -->
+      <div id="workspaceContainer" class="workspace-container hidden">
+        <!-- Queue Sidebar -->
+        <div id="queueSidebar" class="queue-sidebar hidden">
+          <div class="queue-header">
+            <span class="queue-title">Queue (<span id="queueCount">0</span>)</span>
+            <button id="clearQueueBtn" class="btn btn-sm btn-ghost" title="Clear queue">&times;</button>
+          </div>
+          <div id="queueList" class="queue-list"></div>
+          <div class="queue-actions">
+            <button id="processQueueBtn" class="btn btn-primary btn-block">Process Queue</button>
+            <button id="downloadZipBtn" class="btn btn-ghost btn-block hidden">Download ZIP</button>
+          </div>
+          <div id="queueProgress" class="queue-progress hidden">
+            <div class="progress-bar">
+              <div id="queueProgressFill" class="progress-fill"></div>
+            </div>
+            <span id="queueProgressText" class="progress-text">0 / 0</span>
+          </div>
+        </div>
+
+        <!-- Workspace -->
+        <div id="workspace" class="workspace">
         <!-- Preview Card -->
         <div class="card preview-card">
           <div id="cropContainer" class="crop-container">
@@ -55,58 +103,80 @@
             </div>
           </div>
           <div class="preview-info">
-            <span id="imageInfo" class="image-info"></span>
+            <span id="imageInfo" class="image-info" aria-live="polite"></span>
             <div class="preview-actions">
-              <button id="undoBtn" class="btn btn-sm btn-ghost" disabled title="Undo">
+              <button id="undoBtn" class="btn btn-sm btn-ghost" disabled title="Undo (Ctrl+Z)" aria-label="Undo">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h13a4 4 0 0 1 0 8H7"/><polyline points="7 6 3 10 7 14"/></svg>
               </button>
-              <button id="redoBtn" class="btn btn-sm btn-ghost" disabled title="Redo">
+              <button id="redoBtn" class="btn btn-sm btn-ghost" disabled title="Redo (Ctrl+Shift+Z)" aria-label="Redo">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10H8a4 4 0 0 0 0 8h9"/><polyline points="17 6 21 10 17 14"/></svg>
               </button>
-              <button id="downloadBtn" class="btn btn-sm btn-primary">Download</button>
+              <button id="shopifyBtn" class="btn btn-sm btn-shopify" title="Apply optimal Shopify product settings">Shopify</button>
+              <button id="downloadBtn" class="btn btn-sm btn-primary" title="Download (Ctrl+S)">Download</button>
               <button id="changeImageBtn" class="btn btn-sm btn-ghost">New</button>
             </div>
           </div>
+          <!-- File size comparison -->
+          <div id="sizeComparison" class="size-comparison hidden"></div>
         </div>
 
         <!-- Controls Card -->
         <div class="card controls-card">
           <!-- Tabs -->
-          <div class="tabs">
-            <button class="tab active" data-tab="crop">Crop</button>
-            <button class="tab" data-tab="resize">Resize</button>
-            <button class="tab" data-tab="format">Format</button>
-            <button class="tab" data-tab="upscale">Upscale</button>
+          <div class="tabs" role="tablist">
+            <button class="tab active" data-tab="crop" role="tab" aria-selected="true" aria-controls="tab-crop">Crop</button>
+            <button class="tab" data-tab="resize" role="tab" aria-selected="false" aria-controls="tab-resize">Resize</button>
+            <button class="tab" data-tab="format" role="tab" aria-selected="false" aria-controls="tab-format">Format</button>
+            <button class="tab" data-tab="upscale" role="tab" aria-selected="false" aria-controls="tab-upscale">Upscale</button>
           </div>
 
           <!-- Tab: Crop -->
-          <div class="tab-panel active" id="tab-crop">
+          <div class="tab-panel active" id="tab-crop" role="tabpanel">
             <div class="crop-presets">
               <button class="preset-btn active" data-ratio="free">Free</button>
               <button class="preset-btn" data-ratio="1:1">1:1</button>
               <button class="preset-btn" data-ratio="4:3">4:3</button>
               <button class="preset-btn" data-ratio="3:2">3:2</button>
               <button class="preset-btn" data-ratio="16:9">16:9</button>
+              <button class="preset-btn" data-ratio="21:9">21:9</button>
               <button class="preset-btn" data-ratio="2:3">2:3</button>
               <button class="preset-btn" data-ratio="3:4">3:4</button>
               <button class="preset-btn" data-ratio="9:16">9:16</button>
+              <button class="preset-btn" data-ratio="9:21">9:21</button>
             </div>
             <div class="tab-actions">
               <button id="applyCropBtn" class="btn btn-primary">Apply Crop</button>
+              <button id="smartCropBtn" class="btn btn-ghost" title="Auto-detect subject center">Smart Center</button>
               <button id="resetCropBtn" class="btn btn-ghost">Reset</button>
             </div>
           </div>
 
           <!-- Tab: Resize -->
-          <div class="tab-panel" id="tab-resize">
+          <div class="tab-panel" id="tab-resize" role="tabpanel">
+            <div class="input-row">
+              <div class="input-group">
+                <label for="presetSelect">Presets</label>
+                <select id="presetSelect">
+                  <option value="">Custom</option>
+                  <option value="2048x2048">Shopify (2048x2048)</option>
+                  <option value="1080x1080">Instagram Square (1080x1080)</option>
+                  <option value="1080x1350">Instagram Portrait (1080x1350)</option>
+                  <option value="2000x2000">Amazon (2000x2000)</option>
+                  <option value="2700x2025">Etsy (2700x2025)</option>
+                  <option value="1600x1600">eBay (1600x1600)</option>
+                </select>
+              </div>
+              <button id="savePresetBtn" class="btn btn-sm btn-ghost" title="Save current dimensions as preset">Save</button>
+              <button id="deletePresetBtn" class="btn btn-sm btn-ghost hidden" title="Delete custom preset">Del</button>
+            </div>
             <div class="input-row">
               <div class="input-group">
                 <label for="resizeWidth">Width</label>
-                <input type="number" id="resizeWidth" min="1" placeholder="auto">
+                <input type="number" id="resizeWidth" min="1" max="16384" placeholder="auto">
               </div>
               <div class="input-group">
                 <label for="resizeHeight">Height</label>
-                <input type="number" id="resizeHeight" min="1" placeholder="auto">
+                <input type="number" id="resizeHeight" min="1" max="16384" placeholder="auto">
               </div>
               <label class="checkbox-label">
                 <input type="checkbox" id="lockAspect" checked>
@@ -119,7 +189,7 @@
           </div>
 
           <!-- Tab: Format -->
-          <div class="tab-panel" id="tab-format">
+          <div class="tab-panel" id="tab-format" role="tabpanel">
             <div class="input-row">
               <div class="input-group">
                 <label for="formatSelect">Format</label>
@@ -135,13 +205,19 @@
                 <input type="range" id="qualitySlider" min="1" max="100" value="80">
               </div>
             </div>
+            <div class="input-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="stripMetadata">
+                <span>Strip metadata</span>
+              </label>
+            </div>
             <div class="tab-actions">
               <button id="convertBtn" class="btn btn-primary">Convert</button>
             </div>
           </div>
 
           <!-- Tab: Upscale -->
-          <div class="tab-panel" id="tab-upscale">
+          <div class="tab-panel" id="tab-upscale" role="tabpanel">
             <div class="input-row">
               <label class="radio-label">
                 <input type="radio" name="upscaleType" value="crisp" checked>
@@ -157,16 +233,234 @@
               <button id="upscaleBtn" class="btn btn-primary">Upscale</button>
             </div>
           </div>
+
+          <!-- Background section -->
+          <div class="section-divider"></div>
+          <details class="collapsible-section">
+            <summary>Background</summary>
+            <div class="section-content">
+              <div class="input-row">
+                <div class="input-group">
+                  <label for="bgColor">Color</label>
+                  <input type="color" id="bgColor" value="#ffffff">
+                </div>
+                <button id="bgWhiteBtn" class="btn btn-sm btn-ghost">White</button>
+                <button id="bgBlackBtn" class="btn btn-sm btn-ghost">Black</button>
+              </div>
+              <div class="tab-actions">
+                <button id="applyBgBtn" class="btn btn-primary">Flatten Background</button>
+              </div>
+            </div>
+          </details>
+
+          <!-- Watermark section -->
+          <details class="collapsible-section">
+            <summary>Watermark</summary>
+            <div class="section-content">
+              <div class="input-row">
+                <label class="radio-label">
+                  <input type="radio" name="wmType" value="text" checked>
+                  <span>Text</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="wmType" value="image">
+                  <span>Image</span>
+                </label>
+              </div>
+              <div id="wmTextControls">
+                <div class="input-row">
+                  <div class="input-group" style="flex:1">
+                    <label for="wmText">Text</label>
+                    <input type="text" id="wmText" placeholder="Your watermark" class="text-input">
+                  </div>
+                  <div class="input-group">
+                    <label for="wmFontSize">Size</label>
+                    <input type="number" id="wmFontSize" value="24" min="8" max="200">
+                  </div>
+                  <div class="input-group">
+                    <label for="wmColor">Color</label>
+                    <input type="color" id="wmColor" value="#ffffff">
+                  </div>
+                </div>
+              </div>
+              <div id="wmImageControls" class="hidden">
+                <div class="input-row">
+                  <button id="wmImageUpload" class="btn btn-sm btn-ghost">Upload Logo</button>
+                  <span id="wmImageName" class="hint"></span>
+                </div>
+                <input type="file" id="wmImageInput" accept="image/png" hidden>
+              </div>
+              <div class="input-row">
+                <div class="input-group quality-group">
+                  <label for="wmOpacity">Opacity <span id="wmOpacityValue">50</span>%</label>
+                  <input type="range" id="wmOpacity" min="5" max="100" value="50">
+                </div>
+                <div class="input-group">
+                  <label for="wmPosition">Position</label>
+                  <select id="wmPosition">
+                    <option value="center">Center</option>
+                    <option value="top-left">Top Left</option>
+                    <option value="top-right">Top Right</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-right" selected>Bottom Right</option>
+                  </select>
+                </div>
+              </div>
+              <div class="tab-actions">
+                <button id="applyWmBtn" class="btn btn-primary">Apply Watermark</button>
+              </div>
+            </div>
+          </details>
+
+          <!-- Download options -->
+          <details class="collapsible-section">
+            <summary>Download Options</summary>
+            <div class="section-content">
+              <div class="input-row">
+                <div class="input-group" style="flex:1">
+                  <label for="filenameTemplate">Filename template</label>
+                  <input type="text" id="filenameTemplate" class="text-input" placeholder="image-prepped-{n}.{format}" value="image-prepped-{n}.{format}">
+                </div>
+              </div>
+              <p class="hint">Variables: {n} name, {w} width, {h} height, {format}, {date}</p>
+            </div>
+          </details>
+
+          <!-- EXIF metadata -->
+          <details class="collapsible-section" id="metadataSection">
+            <summary>Metadata</summary>
+            <div class="section-content" id="metadataContent">
+              <p class="hint">Load an image to view metadata</p>
+            </div>
+          </details>
+
+          <!-- Export Settings Panel -->
+          <div class="section-divider"></div>
+          <div id="exportPanel" class="export-panel">
+            <h3 class="export-title">Export Settings</h3>
+            <div class="export-mode-toggle">
+              <button id="modeCustomBtn" class="mode-btn active" data-mode="custom">Custom</button>
+              <button id="modeShopifyBtn" class="mode-btn" data-mode="shopify">Shopify</button>
+            </div>
+
+            <!-- Custom Mode Settings -->
+            <div id="customSettings" class="export-settings">
+              <div class="input-row">
+                <div class="input-group">
+                  <label for="exportWidth">Width</label>
+                  <input type="number" id="exportWidth" min="1" max="16384" placeholder="auto">
+                </div>
+                <div class="input-group">
+                  <label for="exportHeight">Height</label>
+                  <input type="number" id="exportHeight" min="1" max="16384" placeholder="auto">
+                </div>
+              </div>
+              <div class="input-row">
+                <div class="input-group">
+                  <label for="exportFormat">Format</label>
+                  <select id="exportFormat">
+                    <option value="png">PNG</option>
+                    <option value="jpg" selected>JPG</option>
+                    <option value="webp">WebP</option>
+                    <option value="avif">AVIF</option>
+                  </select>
+                </div>
+                <div class="input-group quality-group">
+                  <label for="exportQuality">Quality <span id="exportQualityValue">80</span></label>
+                  <input type="range" id="exportQuality" min="1" max="100" value="80">
+                </div>
+              </div>
+            </div>
+
+            <!-- Shopify Mode Info -->
+            <div id="shopifySettings" class="export-settings hidden">
+              <p class="shopify-mode-info">
+                2048&times;2048 JPEG, optimized for Shopify product images
+              </p>
+            </div>
+
+            <div class="export-actions">
+              <button id="addToQueueBtn" class="btn btn-primary btn-block">Add to Queue</button>
+              <button id="updateQueueItemBtn" class="btn btn-ghost btn-block hidden">Update Settings</button>
+            </div>
+          </div>
         </div>
 
+        </div>
       </div>
     </main>
 
-    <!-- Loading overlay -->
-    <div id="loading" class="loading-overlay hidden">
-      <div class="spinner"></div>
-      <span>Processing...</span>
+    <!-- Lightbox Modal -->
+    <div id="lightbox" class="lightbox hidden" role="dialog" aria-modal="true" aria-label="Image preview">
+      <div class="lightbox-backdrop"></div>
+      <div class="lightbox-content">
+        <button id="lightboxCloseBtn" class="lightbox-close" aria-label="Close preview">&times;</button>
+        <div id="lightboxViewport" class="lightbox-viewport">
+          <div id="lightboxLayer" class="lightbox-layer">
+            <img id="lightboxImage" alt="Preview">
+          </div>
+          <div class="zoom-controls">
+            <button id="zoomInBtn" class="btn btn-sm btn-ghost zoom-btn" title="Zoom in" aria-label="Zoom in">+</button>
+            <span id="zoomLabel" class="zoom-label">100%</span>
+            <button id="zoomOutBtn" class="btn btn-sm btn-ghost zoom-btn" title="Zoom out" aria-label="Zoom out">&minus;</button>
+            <button id="fitBtn" class="btn btn-sm btn-ghost zoom-btn" title="Fit to view" aria-label="Fit to view">Fit</button>
+            <button id="actualSizeBtn" class="btn btn-sm btn-ghost zoom-btn" title="Actual pixel size" aria-label="Actual size">100%</button>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <!-- Shopify Results Modal -->
+    <div id="shopifyModal" class="shopify-modal hidden" role="dialog" aria-modal="true" aria-label="Shopify export results">
+      <div class="shopify-modal-backdrop"></div>
+      <div class="shopify-modal-content">
+        <button id="shopifyModalClose" class="shopify-modal-close" aria-label="Close">&times;</button>
+        <h2 class="shopify-modal-title">Shopify Export Ready</h2>
+        <div class="shopify-modal-body">
+          <div class="shopify-preview">
+            <img id="shopifyPreviewImg" alt="Shopify export preview">
+          </div>
+          <div class="shopify-details">
+            <div class="shopify-adjustments" id="shopifyAdjustments"></div>
+            <div class="shopify-info" id="shopifyInfo"></div>
+          </div>
+        </div>
+        <div class="shopify-modal-actions">
+          <button id="shopifyDownloadBtn" class="btn btn-primary">Download</button>
+          <button id="shopifyApplyBtn" class="btn btn-ghost">Apply to Workspace</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <div id="shortcutsModal" class="shortcuts-modal hidden" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+      <div class="shortcuts-backdrop"></div>
+      <div class="shortcuts-content">
+        <button id="shortcutsClose" class="shopify-modal-close" aria-label="Close">&times;</button>
+        <h2 class="shopify-modal-title">Keyboard Shortcuts</h2>
+        <div class="shortcuts-list">
+          <div class="shortcut-item"><kbd>Ctrl/Cmd+Z</kbd><span>Undo</span></div>
+          <div class="shortcut-item"><kbd>Ctrl/Cmd+Shift+Z</kbd><span>Redo</span></div>
+          <div class="shortcut-item"><kbd>Ctrl/Cmd+S</kbd><span>Download</span></div>
+          <div class="shortcut-item"><kbd>Ctrl/Cmd+Enter</kbd><span>Apply current operation</span></div>
+          <div class="shortcut-item"><kbd>1-4</kbd><span>Switch tabs</span></div>
+          <div class="shortcut-item"><kbd>Escape</kbd><span>Close modals</span></div>
+          <div class="shortcut-item"><kbd>?</kbd><span>This panel</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading" class="loading-overlay hidden" aria-live="assertive">
+      <div class="spinner"></div>
+      <span id="loadingMessage">Processing...</span>
+      <div id="progressBar" class="progress-bar hidden">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+    </div>
+
+    <!-- Toast container -->
+    <div id="toastContainer" class="toast-container" aria-live="polite" role="status"></div>
   </div>
 
   <script src="app.js"></script>
