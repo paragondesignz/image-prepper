@@ -1624,10 +1624,10 @@ function renderQueueSidebar() {
 function updateQueueSidebarVisibility() {
   if (queue.length > 0) {
     queueSidebar.classList.remove('hidden');
-    workspaceContainer.classList.add('has-queue');
+    document.body.classList.add('has-queue');
   } else {
     queueSidebar.classList.add('hidden');
-    workspaceContainer.classList.remove('has-queue');
+    document.body.classList.remove('has-queue');
   }
 }
 
@@ -1819,6 +1819,7 @@ function clearAll() {
   uploadBar.classList.add('hidden');
   workspaceContainer.classList.add('hidden');
   queueSidebar.classList.add('hidden');
+  document.body.classList.remove('has-queue');
   dropzone.classList.remove('hidden');
   updatePendingCount();
   renderQueueSidebar();

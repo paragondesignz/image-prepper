@@ -57,25 +57,6 @@
 
       <!-- Workspace Container -->
       <div id="workspaceContainer" class="workspace-container hidden">
-        <!-- Queue Sidebar -->
-        <div id="queueSidebar" class="queue-sidebar hidden">
-          <div class="queue-header">
-            <span class="queue-title">Queue (<span id="queueCount">0</span>)</span>
-            <button id="clearQueueBtn" class="btn btn-sm btn-ghost" title="Clear queue">&times;</button>
-          </div>
-          <div id="queueList" class="queue-list"></div>
-          <div class="queue-actions">
-            <button id="processQueueBtn" class="btn btn-primary btn-block">Process Queue</button>
-            <button id="downloadZipBtn" class="btn btn-ghost btn-block hidden">Download ZIP</button>
-          </div>
-          <div id="queueProgress" class="queue-progress hidden">
-            <div class="progress-bar">
-              <div id="queueProgressFill" class="progress-fill"></div>
-            </div>
-            <span id="queueProgressText" class="progress-text">0 / 0</span>
-          </div>
-        </div>
-
         <!-- Workspace -->
         <div id="workspace" class="workspace">
         <!-- Preview Card -->
@@ -402,8 +383,28 @@
         </div>
 
         </div>
+
       </div>
     </main>
+
+    <!-- Queue Panel (fixed bottom bar) -->
+    <div id="queueSidebar" class="queue-sidebar hidden">
+      <div class="queue-header">
+        <span class="queue-title">Queue (<span id="queueCount">0</span>)</span>
+        <button id="clearQueueBtn" class="btn btn-sm btn-ghost" title="Clear queue">&times;</button>
+      </div>
+      <div id="queueList" class="queue-list"></div>
+      <div class="queue-actions">
+        <button id="processQueueBtn" class="btn btn-primary">Process Queue</button>
+        <button id="downloadZipBtn" class="btn btn-ghost hidden">Download ZIP</button>
+      </div>
+      <div id="queueProgress" class="queue-progress hidden">
+        <div class="progress-bar">
+          <div id="queueProgressFill" class="progress-fill"></div>
+        </div>
+        <span id="queueProgressText" class="progress-text">0 / 0</span>
+      </div>
+    </div>
 
     <!-- Lightbox Modal -->
     <div id="lightbox" class="lightbox hidden" role="dialog" aria-modal="true" aria-label="Image preview">
