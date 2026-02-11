@@ -1,37 +1,4 @@
-const Busboy = require('busboy');
-
-// Disable body parser for multipart handling
-
-function parseMultipart(req) {
-  return new Promise((resolve, reject) => {
-    const fields = {};
-    let fileBuffer = null;
-    let fileMeta = {};
-
-    const busboy = Busboy({ headers: req.headers });
-
-    busboy.on('file', (fieldname, file, info) => {
-      const chunks = [];
-      fileMeta = { filename: info.filename || 'image.png', mimeType: info.mimeType || 'image/png' };
-      file.on('data', (chunk) => chunks.push(chunk));
-      file.on('end', () => {
-        fileBuffer = Buffer.concat(chunks);
-      });
-    });
-
-    busboy.on('field', (name, val) => {
-      fields[name] = val;
-    });
-
-    busboy.on('finish', () => {
-      resolve({ fields, fileBuffer, fileMeta });
-    });
-
-    busboy.on('error', reject);
-
-    req.pipe(busboy);
-  });
-}
+const { parseMultipart, getImageBuffer, cleanupBlob } = require('./_utils');
 
 async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -39,7 +6,9 @@ async function handler(req, res) {
   }
 
   try {
-    const { fields, fileBuffer, fileMeta } = await parseMultipart(req);
+    let { fields, fileBuffer, fileMeta } = await parseMultipart(req);
+
+    fileBuffer = await getImageBuffer(fields, fileBuffer);
 
     if (!fileBuffer) {
       return res.status(400).json({ error: 'No image provided' });
@@ -71,6 +40,8 @@ async function handler(req, res) {
       const errText = await response.text();
       return res.status(response.status).json({ error: `Recraft API error: ${errText}` });
     }
+
+    cleanupBlob(fields);
 
     const result = await response.json();
     res.status(200).json(result);

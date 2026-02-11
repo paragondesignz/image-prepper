@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
 const sharp = require('sharp');
-const FormData = require('form-data');
 const path = require('path');
 
 const app = express();
@@ -66,6 +65,33 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
   }
 });
 
+app.post('/api/shopify-export', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No image provided' });
+
+    // Shopify optimal: 2048x2048 square, progressive JPEG, quality 82, sRGB, white bg
+    let pipeline = sharp(req.file.buffer)
+      .flatten({ background: '#ffffff' })  // Remove transparency with white bg
+      .toColorspace('srgb')
+      .resize(2048, 2048, { fit: 'contain', background: '#ffffff' })
+      .jpeg({ quality: 82, progressive: true, mozjpeg: true });
+
+    const buffer = await pipeline.toBuffer();
+    const metadata = await sharp(buffer).metadata();
+
+    res.json({
+      width: metadata.width,
+      height: metadata.height,
+      format: 'jpeg',
+      size: buffer.length,
+      data: `data:image/jpeg;base64,${buffer.toString('base64')}`
+    });
+  } catch (err) {
+    console.error('Shopify export error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/upscale', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No image provided' });
@@ -80,17 +106,14 @@ app.post('/api/upscale', upload.single('image'), async (req, res) => {
       ? 'https://external.api.recraft.ai/v1/images/creativeUpscale'
       : 'https://external.api.recraft.ai/v1/images/crispUpscale';
 
-    const form = new FormData();
-    form.append('file', req.file.buffer, {
-      filename: req.file.originalname || 'image.png',
-      contentType: req.file.mimetype
-    });
+    const form = new globalThis.FormData();
+    const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
+    form.append('file', blob, req.file.originalname || 'image.png');
 
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        ...form.getHeaders()
+        'Authorization': `Bearer ${apiKey}`
       },
       body: form
     });
