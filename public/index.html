@@ -172,6 +172,20 @@
             </div>
             <div class="input-row">
               <div class="input-group">
+                <label for="fitMode">Fit Mode</label>
+                <select id="fitMode">
+                  <option value="fill">Fill (stretch)</option>
+                  <option value="contain">Contain (pad)</option>
+                  <option value="cover">Cover (crop)</option>
+                </select>
+              </div>
+              <div class="input-group" id="fitBgGroup" style="display:none">
+                <label for="fitBgColor">Pad Color</label>
+                <input type="color" id="fitBgColor" value="#ffffff">
+              </div>
+            </div>
+            <div class="input-row">
+              <div class="input-group">
                 <label for="resizeWidth">Width</label>
                 <input type="number" id="resizeWidth" min="1" max="16384" placeholder="auto">
               </div>
