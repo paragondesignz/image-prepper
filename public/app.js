@@ -74,6 +74,13 @@ const queueProgress = document.getElementById('queueProgress');
 const queueProgressFill = document.getElementById('queueProgressFill');
 const queueProgressText = document.getElementById('queueProgressText');
 
+// Empty state & pending bar elements
+const emptyState = document.getElementById('emptyState');
+const pendingBar = document.getElementById('pendingBar');
+const pendingBarCount = document.getElementById('pendingBarCount');
+const pendingList = document.getElementById('pendingList');
+const clearPendingBtn = document.getElementById('clearPendingBtn');
+
 // Export panel elements
 const exportPanel = document.getElementById('exportPanel');
 const modeCustomBtn = document.getElementById('modeCustomBtn');
@@ -140,7 +147,7 @@ let lastPinchDist = 0, lastPinchMid = { x: 0, y: 0 };
 // QueueItem: { id, dataUrl, filename, width, height, settings, status, result, error }
 // settings: { mode: 'custom'|'shopify', width?, height?, format, quality }
 let queue = [];
-let pendingFiles = []; // Files waiting to be presented in workspace for configuration
+let pendingFiles = []; // { file: File, url: string (objectURL), name: string }[]
 let activeQueueId = null; // Currently reviewing a queue item? (null = fresh image, not yet queued)
 
 // Watermark image state
@@ -454,6 +461,7 @@ function loadFile(file, showWorkspace = true) {
       history = [];
       historyIndex = -1;
       activeQueueId = null; // Fresh image, not from queue
+      hideWorkspaceEmptyState();
       pushState({ dataUrl, width: img.naturalWidth, height: img.naturalHeight, size: file.size, format });
       if (file.size > MAX_FILE_SIZE) {
         imageInfo.classList.add('size-warning');
@@ -477,17 +485,21 @@ function loadFile(file, showWorkspace = true) {
 
 // --- New File Handling ---
 
+function makePendingEntry(file) {
+  return { file, url: URL.createObjectURL(file), name: file.name.replace(/\.[^.]+$/, '') || 'image' };
+}
+
 function handleNewFiles(files) {
   if (files.length === 1 && historyIndex < 0 && pendingFiles.length === 0) {
     // First single image - load directly
     loadFile(files[0]);
   } else if (historyIndex < 0 && pendingFiles.length === 0) {
     // Multiple images dropped initially - load first, queue rest as pending
-    pendingFiles = files.slice(1);
+    pendingFiles = files.slice(1).map(makePendingEntry);
     loadFile(files[0]);
   } else {
     // Already working - add all to pending queue
-    pendingFiles.push(...files);
+    pendingFiles.push(...files.map(makePendingEntry));
     updatePendingCount();
     showToast(`Added ${files.length} image${files.length > 1 ? 's' : ''} to waiting list`, 'success');
   }
@@ -507,12 +519,14 @@ function updatePendingCount() {
   } else {
     pendingCountEl.classList.add('hidden');
   }
+  renderPendingBar();
 }
 
 function loadNextPendingFile() {
   if (pendingFiles.length > 0) {
-    const nextFile = pendingFiles.shift();
-    loadFile(nextFile, false);
+    const next = pendingFiles.shift();
+    URL.revokeObjectURL(next.url);
+    loadFile(next.file, false);
     updatePendingCount();
   } else {
     // No more pending - show prompt or clear workspace
@@ -527,9 +541,64 @@ function showWorkspaceEmptyState() {
     historyIndex = -1;
     activeQueueId = null;
     preview.src = '';
-    imageInfo.textContent = 'Add more images or process the queue';
+    // Show empty state, hide preview elements
+    emptyState.classList.remove('hidden');
+    cropContainer.classList.add('hidden');
+    document.querySelector('.preview-info').classList.add('hidden');
+    sizeComparison.classList.add('hidden');
   }
 }
+
+function hideWorkspaceEmptyState() {
+  emptyState.classList.add('hidden');
+  cropContainer.classList.remove('hidden');
+  document.querySelector('.preview-info').classList.remove('hidden');
+}
+
+// --- Pending Bar ---
+
+function renderPendingBar() {
+  if (pendingFiles.length === 0) {
+    pendingBar.classList.add('hidden');
+    document.body.classList.remove('has-pending');
+    return;
+  }
+  pendingBar.classList.remove('hidden');
+  document.body.classList.add('has-pending');
+  pendingBarCount.textContent = pendingFiles.length;
+
+  pendingList.innerHTML = pendingFiles.map((entry, idx) => {
+    return `<div class="queue-item" data-pending-idx="${idx}">
+      <img src="${entry.url}" alt="${entry.name}" class="queue-item-thumb">
+      <div class="queue-item-info">
+        <div class="queue-item-name">${entry.name}</div>
+      </div>
+      <button class="queue-item-remove" data-pending-remove="${idx}" title="Remove">&times;</button>
+    </div>`;
+  }).join('');
+}
+
+function clearPendingFiles() {
+  pendingFiles.forEach(entry => URL.revokeObjectURL(entry.url));
+  pendingFiles = [];
+  updatePendingCount();
+}
+
+// Pending bar click handlers
+pendingList.addEventListener('click', (e) => {
+  const removeBtn = e.target.closest('[data-pending-remove]');
+  if (removeBtn) {
+    e.stopPropagation();
+    const idx = parseInt(removeBtn.dataset.pendingRemove);
+    if (idx >= 0 && idx < pendingFiles.length) {
+      URL.revokeObjectURL(pendingFiles[idx].url);
+      pendingFiles.splice(idx, 1);
+      updatePendingCount();
+    }
+  }
+});
+
+clearPendingBtn.addEventListener('click', clearPendingFiles);
 
 // --- EXIF Metadata ---
 
@@ -1576,6 +1645,7 @@ function loadQueueItemForReview(id) {
   // Load the image into preview
   const img = new Image();
   img.onload = () => {
+    hideWorkspaceEmptyState();
     history = [];
     historyIndex = -1;
     pushState({
@@ -1867,6 +1937,8 @@ downloadZipBtn.addEventListener('click', async () => {
 
 function clearAll() {
   queue = [];
+  // Revoke all pending object URLs before clearing
+  pendingFiles.forEach(entry => { if (entry.url) URL.revokeObjectURL(entry.url); });
   pendingFiles = [];
   activeQueueId = null;
   history = [];
@@ -1875,7 +1947,10 @@ function clearAll() {
   workspaceContainer.classList.add('hidden');
   queueSidebar.classList.add('hidden');
   document.body.classList.remove('has-queue');
+  document.body.classList.remove('has-pending');
+  pendingBar.classList.add('hidden');
   dropzone.classList.remove('hidden');
+  hideWorkspaceEmptyState();
   updatePendingCount();
   renderQueueSidebar();
 }

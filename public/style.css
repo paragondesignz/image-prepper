@@ -390,9 +390,61 @@ body.has-queue {
   padding-bottom: 80px;
 }
 
+/* Add top padding when pending bar is visible */
+body.has-pending {
+  padding-top: 80px;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.empty-state-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--toast-success);
+  opacity: 0.8;
+}
+
+.empty-state-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.empty-state-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  max-width: 280px;
+}
+
+/* Pending Bar (fixed top bar - mirrors queue-sidebar) */
+.pending-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
 body.has-queue .toast-container {
   bottom: 5rem;
 }
+
 
 /* Queue Panel (fixed bottom bar) */
 .queue-sidebar {
@@ -1385,11 +1437,13 @@ select:focus-visible {
 }
 
 @media (max-width: 767px) {
-  .queue-sidebar {
+  .queue-sidebar,
+  .pending-bar {
     flex-wrap: wrap;
     padding: 0.6rem 1rem;
   }
-  .queue-list {
+  .queue-sidebar .queue-list,
+  .pending-bar .queue-list {
     order: -1;
     width: 100%;
     flex: none;
