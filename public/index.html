@@ -239,7 +239,6 @@
           </div>
 
           <!-- Options panel (collapsible wrapper) -->
-          <div class="section-divider"></div>
           <details id="optionsPanel" class="collapsible-section">
             <summary>Options</summary>
             <div class="section-content">
@@ -347,9 +346,9 @@
           </details>
 
           <!-- Export Settings Panel -->
-          <div class="section-divider"></div>
-          <div id="exportPanel" class="export-panel">
-            <h3 class="export-title">Export Settings</h3>
+          <details id="exportPanel" class="collapsible-section" open>
+            <summary>Export Settings</summary>
+            <div class="section-content export-panel">
             <div class="export-mode-toggle">
               <button id="modeCustomBtn" class="mode-btn active" data-mode="custom">Custom</button>
               <button id="modeShopifyBtn" class="mode-btn" data-mode="shopify">Shopify</button>
@@ -400,7 +399,8 @@
               <button id="addToQueueBtn" class="btn btn-primary btn-block">Add to Queue</button>
               <button id="updateQueueItemBtn" class="btn btn-ghost btn-block hidden">Update Settings</button>
             </div>
-          </div>
+            </div>
+          </details>
         </div>
 
         </div>
