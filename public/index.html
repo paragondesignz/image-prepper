@@ -368,11 +368,16 @@
               </div>
             </div>
 
-            <!-- Shopify Mode Info -->
+            <!-- Shopify Mode Settings -->
             <div id="shopifySettings" class="export-settings hidden">
-              <p class="shopify-mode-info">
-                2048&times;2048 JPEG, optimized for Shopify product images
-              </p>
+              <div class="shopify-preset-toggle">
+                <button id="shopifyPresetSquare" class="preset-toggle-btn active" data-preset="square">Square (2048&times;2048)</button>
+                <button id="shopifyPresetWide" class="preset-toggle-btn" data-preset="3:2">3:2 (1500&times;1000)</button>
+              </div>
+              <label class="checkbox-label shopify-upscale-label">
+                <input type="checkbox" id="shopifyAutoUpscale" checked>
+                <span>Auto-upscale small images (AI)</span>
+              </label>
             </div>
 
             <div class="export-actions">
@@ -392,6 +397,10 @@
       <div class="queue-header">
         <span class="queue-title">Queue (<span id="queueCount">0</span>)</span>
         <button id="clearQueueBtn" class="btn btn-sm btn-ghost" title="Clear queue">&times;</button>
+      </div>
+      <div class="queue-quick-actions">
+        <button id="shopifySquareAllBtn" class="btn btn-sm btn-shopify" title="Process all as Shopify Square 2048&times;2048 with auto-upscale">Shopify Square All</button>
+        <button id="shopifyWideAllBtn" class="btn btn-sm btn-shopify" title="Process all as Shopify 3:2 1500&times;1000 with auto-upscale">Shopify 3:2 All</button>
       </div>
       <div id="queueList" class="queue-list"></div>
       <div class="queue-actions">

@@ -87,6 +87,11 @@ const exportQuality = document.getElementById('exportQuality');
 const exportQualityValue = document.getElementById('exportQualityValue');
 const addToQueueBtn = document.getElementById('addToQueueBtn');
 const updateQueueItemBtn = document.getElementById('updateQueueItemBtn');
+const shopifyPresetSquare = document.getElementById('shopifyPresetSquare');
+const shopifyPresetWide = document.getElementById('shopifyPresetWide');
+const shopifyAutoUpscale = document.getElementById('shopifyAutoUpscale');
+const shopifySquareAllBtn = document.getElementById('shopifySquareAllBtn');
+const shopifyWideAllBtn = document.getElementById('shopifyWideAllBtn');
 
 // Background elements
 const bgColor = document.getElementById('bgColor');
@@ -1138,6 +1143,7 @@ shopifyBtn.addEventListener('click', async () => {
     const blob = await getCurrentBlob();
     const formData = new FormData();
     formData.append('image', blob, 'image.' + currentFormat);
+    formData.append('autoUpscale', 'true');
     const data = await apiRequest('/api/shopify-export', formData);
 
     const adjustments = [
@@ -1146,6 +1152,9 @@ shopifyBtn.addEventListener('click', async () => {
       'Color space: sRGB',
       'White background padding applied'
     ];
+    if (data.upscaled) {
+      adjustments.unshift('AI upscaled (source was smaller than target)');
+    }
 
     showShopifyModal(data, adjustments);
   } catch (err) {
@@ -1484,7 +1493,8 @@ function generateQueueId() {
 function captureExportSettings() {
   const mode = modeShopifyBtn.classList.contains('active') ? 'shopify' : 'custom';
   if (mode === 'shopify') {
-    return { mode: 'shopify' };
+    const preset = shopifyPresetWide.classList.contains('active') ? '3:2' : 'square';
+    return { mode: 'shopify', preset, autoUpscale: shopifyAutoUpscale.checked };
   }
   return {
     mode: 'custom',
@@ -1493,6 +1503,11 @@ function captureExportSettings() {
     format: exportFormat.value,
     quality: parseInt(exportQuality.value)
   };
+}
+
+function getShopifyDimensions(preset) {
+  if (preset === '3:2') return { targetWidth: 1500, targetHeight: 1000 };
+  return { targetWidth: 2048, targetHeight: 2048 };
 }
 
 function addToQueue() {
@@ -1574,6 +1589,15 @@ function loadQueueItemForReview(id) {
     // Apply the item's settings to the export panel
     if (item.settings.mode === 'shopify') {
       setExportMode('shopify');
+      // Restore preset selection
+      if (item.settings.preset === '3:2') {
+        shopifyPresetWide.classList.add('active');
+        shopifyPresetSquare.classList.remove('active');
+      } else {
+        shopifyPresetSquare.classList.add('active');
+        shopifyPresetWide.classList.remove('active');
+      }
+      shopifyAutoUpscale.checked = item.settings.autoUpscale !== false;
     } else {
       setExportMode('custom');
       exportWidth.value = item.settings.width || '';
@@ -1606,7 +1630,7 @@ function renderQueueSidebar() {
       : '○ Pending';
 
     const settingsText = item.settings.mode === 'shopify'
-      ? 'Shopify'
+      ? `Shopify ${item.settings.preset === '3:2' ? '1500×1000' : '2048×2048'}${item.settings.autoUpscale !== false ? ' ↑' : ''}`
       : `Custom ${item.settings.width || 'auto'}×${item.settings.height || 'auto'}`;
 
     return `<div class="queue-item ${item.status}${item.id === activeQueueId ? ' active' : ''}" data-id="${item.id}">
@@ -1682,6 +1706,34 @@ function setExportMode(mode) {
   }
 }
 
+// Shopify preset toggle
+shopifyPresetSquare.addEventListener('click', () => {
+  shopifyPresetSquare.classList.add('active');
+  shopifyPresetWide.classList.remove('active');
+});
+shopifyPresetWide.addEventListener('click', () => {
+  shopifyPresetWide.classList.add('active');
+  shopifyPresetSquare.classList.remove('active');
+});
+
+// Shopify quick-action buttons
+shopifySquareAllBtn.addEventListener('click', () => applyShopifyPresetToAll('square'));
+shopifyWideAllBtn.addEventListener('click', () => applyShopifyPresetToAll('3:2'));
+
+function applyShopifyPresetToAll(preset) {
+  const pendingItems = queue.filter(q => q.status === 'pending');
+  if (!pendingItems.length) {
+    showToast('No pending items in queue', 'info');
+    return;
+  }
+  pendingItems.forEach(item => {
+    item.settings = { mode: 'shopify', preset, autoUpscale: true };
+  });
+  renderQueueSidebar();
+  showToast(`Applied Shopify ${preset === '3:2' ? '1500×1000' : '2048×2048'} to ${pendingItems.length} items`, 'success');
+  processQueue();
+}
+
 // Export quality slider
 exportQuality.addEventListener('input', () => {
   exportQualityValue.textContent = exportQuality.value;
@@ -1754,7 +1806,10 @@ async function processQueueItem(item) {
   formData.append('image', blob, item.filename + '.png');
 
   if (item.settings.mode === 'shopify') {
-    // Use Shopify export endpoint
+    const dims = getShopifyDimensions(item.settings.preset || 'square');
+    formData.append('targetWidth', dims.targetWidth);
+    formData.append('targetHeight', dims.targetHeight);
+    if (item.settings.autoUpscale !== false) formData.append('autoUpscale', 'true');
     return await apiRequest('/api/shopify-export', formData, 1);
   } else {
     // Use regular process endpoint with custom settings
