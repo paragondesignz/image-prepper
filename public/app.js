@@ -425,6 +425,86 @@ changeImageBtn.addEventListener('click', () => {
 // Add Images button in upload bar
 addImagesBtn.addEventListener('click', () => fileInput.click());
 
+// --- Load from URL ---
+
+const dropzoneUrlForm = document.getElementById('dropzoneUrlForm');
+const dropzoneUrlInput = document.getElementById('dropzoneUrlInput');
+const uploadBarUrlForm = document.getElementById('uploadBarUrlForm');
+const uploadBarUrlInput = document.getElementById('uploadBarUrlInput');
+const pasteUrlBtn = document.getElementById('pasteUrlBtn');
+
+async function loadFromUrl(url) {
+  url = url.trim();
+  if (!url) return;
+  try {
+    new URL(url);
+  } catch {
+    showToast('Invalid URL format', 'error');
+    return;
+  }
+  showLoading(true, 'Fetching image from URL...');
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to fetch (${res.status})`);
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.startsWith('image/')) {
+      throw new Error('URL does not point to an image');
+    }
+    const blob = await res.blob();
+    if (blob.size > MAX_UPLOAD_SIZE) {
+      throw new Error('Image exceeds 50MB limit');
+    }
+    // Extract filename from URL path
+    const pathname = new URL(url).pathname;
+    const urlFilename = pathname.split('/').pop() || 'image';
+    // Determine extension from content-type
+    const extMap = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/avif': 'avif', 'image/gif': 'gif' };
+    const ext = extMap[contentType.split(';')[0]] || 'png';
+    const filename = urlFilename.includes('.') ? urlFilename : `${urlFilename}.${ext}`;
+    const file = new File([blob], filename, { type: blob.type || `image/${ext}` });
+    handleNewFiles([file]);
+    showToast('Image loaded from URL', 'success');
+  } catch (err) {
+    if (err.name === 'TypeError' && err.message.includes('fetch')) {
+      showToast('Could not fetch URL (CORS or network error)', 'error');
+    } else {
+      showToast(err.message, 'error');
+    }
+  } finally {
+    showLoading(false);
+  }
+}
+
+dropzoneUrlForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  loadFromUrl(dropzoneUrlInput.value);
+  dropzoneUrlInput.value = '';
+});
+
+uploadBarUrlForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  loadFromUrl(uploadBarUrlInput.value);
+  uploadBarUrlInput.value = '';
+  uploadBarUrlForm.classList.add('hidden');
+  pasteUrlBtn.classList.remove('hidden');
+});
+
+pasteUrlBtn.addEventListener('click', () => {
+  pasteUrlBtn.classList.add('hidden');
+  uploadBarUrlForm.classList.remove('hidden');
+  uploadBarUrlInput.focus();
+});
+
+// Hide inline URL input when clicking outside
+document.addEventListener('click', (e) => {
+  if (!uploadBarUrlForm.classList.contains('hidden') &&
+      !uploadBarUrlForm.contains(e.target) &&
+      e.target !== pasteUrlBtn) {
+    uploadBarUrlForm.classList.add('hidden');
+    pasteUrlBtn.classList.remove('hidden');
+  }
+});
+
 // Allow dropping images onto workspace/upload bar area
 workspaceContainer.addEventListener('dragover', (e) => { e.preventDefault(); });
 workspaceContainer.addEventListener('drop', (e) => {

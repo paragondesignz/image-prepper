@@ -168,6 +168,60 @@ body {
   font-size: 0.8rem;
 }
 
+/* URL input in dropzone */
+.dropzone-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 300px;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+}
+
+.dropzone-divider::before,
+.dropzone-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.url-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.url-input {
+  flex: 1;
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 0.85rem;
+  width: auto;
+  transition: border-color 0.15s;
+}
+
+.url-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.url-input-inline {
+  max-width: 300px;
+}
+
+/* Upload bar URL toggle */
+.upload-bar .url-input-row {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
 .hidden {
   display: none !important;
 }
