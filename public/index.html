@@ -19,7 +19,7 @@
           <button id="shortcutsBtn" class="btn btn-sm btn-ghost" aria-label="Keyboard shortcuts" title="Keyboard shortcuts">?</button>
         </div>
       </div>
-      <p class="subtitle">Resize, crop, convert &amp; upscale</p>
+      <p class="subtitle">Resize, crop, convert, upscale &amp; vectorize</p>
     </header>
 
     <!-- Session restore banner -->
@@ -127,6 +127,7 @@
             <button class="tab" data-tab="resize" role="tab" aria-selected="false" aria-controls="tab-resize">Resize</button>
             <button class="tab" data-tab="format" role="tab" aria-selected="false" aria-controls="tab-format">Format</button>
             <button class="tab" data-tab="upscale" role="tab" aria-selected="false" aria-controls="tab-upscale">Upscale</button>
+            <button class="tab" data-tab="vectorize" role="tab" aria-selected="false" aria-controls="tab-vectorize">Vectorize</button>
           </div>
 
           <!-- Tab: Crop -->
@@ -245,6 +246,14 @@
             <p class="hint">Uses Recraft AI. Requires API key configured on server.</p>
             <div class="tab-actions">
               <button id="upscaleBtn" class="btn btn-primary">Upscale</button>
+            </div>
+          </div>
+
+          <!-- Tab: Vectorize -->
+          <div class="tab-panel" id="tab-vectorize" role="tabpanel">
+            <p class="hint">Convert raster logos (PNG/JPG/WebP) to clean SVG vectors using Recraft AI. Best results with logos, icons, and simple graphics.</p>
+            <div class="tab-actions">
+              <button id="vectorizeBtn" class="btn btn-primary">Vectorize</button>
             </div>
           </div>
 
@@ -504,7 +513,7 @@
           <div class="shortcut-item"><kbd>Ctrl/Cmd+Shift+Z</kbd><span>Redo</span></div>
           <div class="shortcut-item"><kbd>Ctrl/Cmd+S</kbd><span>Download</span></div>
           <div class="shortcut-item"><kbd>Ctrl/Cmd+Enter</kbd><span>Apply current operation</span></div>
-          <div class="shortcut-item"><kbd>1-4</kbd><span>Switch tabs</span></div>
+          <div class="shortcut-item"><kbd>1-5</kbd><span>Switch tabs</span></div>
           <div class="shortcut-item"><kbd>Escape</kbd><span>Close modals</span></div>
           <div class="shortcut-item"><kbd>?</kbd><span>This panel</span></div>
         </div>

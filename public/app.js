@@ -18,6 +18,7 @@ const qualityValue = document.getElementById('qualityValue');
 const processBtn = document.getElementById('processBtn');
 const convertBtn = document.getElementById('convertBtn');
 const upscaleBtn = document.getElementById('upscaleBtn');
+const vectorizeBtn = document.getElementById('vectorizeBtn');
 const applyCropBtn = document.getElementById('applyCropBtn');
 const resetCropBtn = document.getElementById('resetCropBtn');
 const smartCropBtn = document.getElementById('smartCropBtn');
@@ -1145,6 +1146,21 @@ upscaleBtn.addEventListener('click', async () => {
   finally { showLoading(false); }
 });
 
+// --- Vectorize ---
+vectorizeBtn.addEventListener('click', async () => {
+  if (historyIndex < 0) return;
+  showLoading(true, 'Vectorizing with AI...');
+  const blob = await getCurrentBlob();
+  const formData = new FormData();
+  formData.append('image', blob, 'image.' + currentFormat);
+  try {
+    const data = await apiRequest('/api/vectorize', formData);
+    pushState({ dataUrl: data.data, width: data.width, height: data.height, size: data.size, format: 'svg' });
+    showToast('Vectorize complete', 'success');
+  } catch (err) { showError(err.message); }
+  finally { showLoading(false); }
+});
+
 // --- Background ---
 bgWhiteBtn.addEventListener('click', () => { bgColor.value = '#ffffff'; });
 bgBlackBtn.addEventListener('click', () => { bgColor.value = '#000000'; });
@@ -1466,13 +1482,14 @@ document.addEventListener('keydown', (e) => {
       case 'resize': processBtn.click(); break;
       case 'format': convertBtn.click(); break;
       case 'upscale': upscaleBtn.click(); break;
+      case 'vectorize': vectorizeBtn.click(); break;
     }
     return;
   }
 
   // Number keys: switch tabs
-  if (e.key >= '1' && e.key <= '4' && !mod) {
-    const tabs = ['crop', 'resize', 'format', 'upscale'];
+  if (e.key >= '1' && e.key <= '5' && !mod) {
+    const tabs = ['crop', 'resize', 'format', 'upscale', 'vectorize'];
     const idx = parseInt(e.key) - 1;
     const tabBtn = document.querySelector(`[data-tab="${tabs[idx]}"]`);
     if (tabBtn) tabBtn.click();
